@@ -1,0 +1,5 @@
+{
+  "name": "Jeju Weather Dashboard",
+  "description": "An interactive dashboard for monitoring and analyzing real-time and historical weather data across various regions of Jeju Island, with customizable widgets and comparative graphs.",
+  "requestFramePermissions": []
+}
