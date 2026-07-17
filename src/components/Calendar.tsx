@@ -1,4 +1,5 @@
 import React from 'react';
+import { addDays } from 'date-fns';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -233,7 +234,7 @@ export const Calendar: React.FC<CalendarProps> = ({
     const startOfWeek = getKSTStartOfWeek(currentDate);
     const weekDays: Date[] = [];
     for (let i = 0; i < 7; i++) {
-      weekDays.push(new Date(startOfWeek.getTime() + i * 24 * 60 * 60 * 1000));
+      weekDays.push(addDays(startOfWeek, i));
     }
 
     return (
@@ -343,10 +344,10 @@ export const Calendar: React.FC<CalendarProps> = ({
         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
           <div className="w-12 h-12 rounded-xl bg-indigo-600/10 flex flex-col items-center justify-center border border-indigo-500/10">
             <span className="text-[10px] font-bold text-indigo-400 leading-none mb-0.5">
-              {['일', '월', '화', '수', '목', '금', '토'][currentDate.getDay()]}
+              {['일', '월', '화', '수', '목', '금', '토'][getKSTDate(currentDate).getDay()]}
             </span>
             <span className="text-lg font-extrabold text-white leading-none">
-              {currentDate.getDate()}
+              {getKSTDate(currentDate).getDate()}
             </span>
           </div>
           <div>

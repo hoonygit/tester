@@ -45,7 +45,6 @@ export const handler = async (event: any, context: any) => {
       );
     `;
 
-    const path = event.path;
     const method = event.httpMethod;
 
     // We route requests via Netlify's redirects or directly
@@ -109,12 +108,13 @@ export const handler = async (event: any, context: any) => {
       }
       const data = JSON.parse(event.body);
       const { id, title, description, category, startTime, endTime, allDay } = data;
+      const numericId = Number(id);
 
-      if (!id || !title || !category || !startTime || !endTime) {
+      if (isNaN(numericId) || !id || !title || !category || !startTime || !endTime) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'Missing required fields: id, title, category, startTime, endTime' })
+          body: JSON.stringify({ error: 'Missing required fields or invalid ID' })
         };
       }
 
@@ -126,7 +126,7 @@ export const handler = async (event: any, context: any) => {
             start_time = ${startTime}, 
             end_time = ${endTime}, 
             all_day = ${allDay || false}
-        WHERE id = ${id}
+        WHERE id = ${numericId}
         RETURNING id, title, description, category, 
                   start_time AS "startTime", 
                   end_time AS "endTime", 
@@ -157,17 +157,19 @@ export const handler = async (event: any, context: any) => {
         }
       }
 
-      if (!id) {
+      const numericId = Number(id);
+
+      if (!id || isNaN(numericId)) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'Missing event ID' })
+          body: JSON.stringify({ error: 'Missing or invalid event ID' })
         };
       }
 
       const result = await sql`
         DELETE FROM events 
-        WHERE id = ${id}
+        WHERE id = ${numericId}
         RETURNING id;
       `;
 

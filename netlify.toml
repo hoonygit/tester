@@ -10,3 +10,9 @@
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
+
+# SPA 폴백: 존재하지 않는 경로는 모두 index.html로 라우팅
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
