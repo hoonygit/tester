@@ -1,24 +1,14 @@
 import React from 'react';
 import { addDays } from 'date-fns';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Calendar as CalendarIcon, 
-  Clock, 
-  User, 
-  Briefcase, 
-  BookOpen, 
-  Trophy 
-} from 'lucide-react';
 import { CATEGORIES } from '../types';
 import type { EventItem, CalendarView } from '../types';
-import { 
-  getKSTDate, 
-  formatKSTDate, 
-  formatKSTTime, 
+import {
+  getKSTDate,
+  formatKSTDate,
+  formatKSTTime,
   formatKSTDateTime,
-  getKSTStartOfWeek, 
-  getKSTStartOfMonth 
+  getKSTStartOfWeek,
+  getKSTStartOfMonth
 } from '../utils/dateHelper';
 
 interface CalendarProps {
@@ -31,294 +21,218 @@ interface CalendarProps {
   onChangeView: (view: CalendarView) => void;
 }
 
+// 카테고리 아이콘 (SVG inline)
+const CatIcon = ({ cat }: { cat: string }) => {
+  const icons: Record<string, string> = {
+    meeting: 'M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h4l3 3 3-3h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z',
+    assignment: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
+    event: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+    personal: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+  };
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d={icons[cat] || icons.personal} />
+    </svg>
+  );
+};
+
+const CalIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+  </svg>
+);
+
+const ClockIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+  </svg>
+);
+
+const ChevronL = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+);
+const ChevronR = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>
+);
+
 export const Calendar: React.FC<CalendarProps> = ({
-  currentDate,
-  view,
-  events,
-  onDateClick,
-  onEventClick,
-  onChangeDate,
-  onChangeView,
+  currentDate, view, events, onDateClick, onEventClick, onChangeDate, onChangeView,
 }) => {
-  
-  // KST 기준 연도와 월 추출
-  const kstDate = getKSTDate(currentDate);
-  const currentYear = kstDate.getFullYear();
-  const currentMonth = kstDate.getMonth(); // 0-indexed
+  const kstNow = getKSTDate(currentDate);
+  const currentYear  = kstNow.getFullYear();
+  const currentMonth = kstNow.getMonth();
 
-  // 이전달/다음달 이동
   const handlePrev = () => {
-    const newDate = new Date(currentDate);
-    if (view === 'month') {
-      newDate.setMonth(newDate.getMonth() - 1);
-    } else if (view === 'week') {
-      newDate.setDate(newDate.getDate() - 7);
-    } else {
-      newDate.setDate(newDate.getDate() - 1);
-    }
-    onChangeDate(newDate);
+    const d = new Date(currentDate);
+    if (view === 'month') d.setMonth(d.getMonth() - 1);
+    else if (view === 'week') d.setDate(d.getDate() - 7);
+    else d.setDate(d.getDate() - 1);
+    onChangeDate(d);
   };
-
   const handleNext = () => {
-    const newDate = new Date(currentDate);
-    if (view === 'month') {
-      newDate.setMonth(newDate.getMonth() + 1);
-    } else if (view === 'week') {
-      newDate.setDate(newDate.getDate() + 7);
-    } else {
-      newDate.setDate(newDate.getDate() + 1);
-    }
-    onChangeDate(newDate);
+    const d = new Date(currentDate);
+    if (view === 'month') d.setMonth(d.getMonth() + 1);
+    else if (view === 'week') d.setDate(d.getDate() + 7);
+    else d.setDate(d.getDate() + 1);
+    onChangeDate(d);
   };
+  const handleToday = () => onChangeDate(new Date());
 
-  const handleToday = () => {
-    onChangeDate(new Date());
-  };
-
-  // 일정 카테고리별 아이콘 가져오기
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'meeting': return <Briefcase className="w-3.5 h-3.5" />;
-      case 'assignment': return <BookOpen className="w-3.5 h-3.5" />;
-      case 'event': return <Trophy className="w-3.5 h-3.5" />;
-      case 'personal': default: return <User className="w-3.5 h-3.5" />;
-    }
-  };
-
-  // 특정 일자의 일정 필터링 (KST 기준 날짜가 겹치거나 같은 경우)
   const getEventsForDate = (date: Date): EventItem[] => {
-    const targetStr = formatKSTDate(date);
-    return events.filter(event => {
-      const startStr = formatKSTDate(event.startTime);
-      const endStr = formatKSTDate(event.endTime);
-      
-      // 당일 일정이거나, 시작일과 종료일 범위 내에 있는 경우
-      return targetStr >= startStr && targetStr <= endStr;
+    const target = formatKSTDate(date);
+    return events.filter(e => {
+      const s = formatKSTDate(e.startTime);
+      const en = formatKSTDate(e.endTime);
+      return target >= s && target <= en;
     });
   };
 
-  // 1. 월간 뷰(Month View) 렌더러
+  // ─── Month View ───
   const renderMonthView = () => {
-    const startOfMonth = getKSTStartOfMonth(currentDate);
-    const startDayOfWeek = startOfMonth.getDay(); // 0 (일) ~ 6 (토)
-    
-    // 월의 총 일수
-    const tempDate = new Date(currentYear, currentMonth + 1, 0);
-    const totalDays = tempDate.getDate();
-
-    // 이전 달의 일수 가져오기
-    const prevMonthTemp = new Date(currentYear, currentMonth, 0);
-    const prevMonthDays = prevMonthTemp.getDate();
+    const startOfMonth  = getKSTStartOfMonth(currentDate);
+    const startDayOfWeek = startOfMonth.getDay();
+    const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
+    const todayStr = formatKSTDate(new Date());
 
     const days: React.ReactNode[] = [];
 
-    // 이전 달 패딩 날짜 추가
     for (let i = startDayOfWeek - 1; i >= 0; i--) {
       const dayNum = prevMonthDays - i;
-      const dateVal = new Date(currentYear, currentMonth - 1, dayNum);
-      days.push(renderDayCell(dateVal, true, `prev-${dayNum}`));
+      days.push(renderDayCell(new Date(currentYear, currentMonth - 1, dayNum), true, todayStr, `prev-${dayNum}`));
     }
-
-    // 현재 달 날짜 추가
     for (let i = 1; i <= totalDays; i++) {
-      const dateVal = new Date(currentYear, currentMonth, i);
-      days.push(renderDayCell(dateVal, false, `curr-${i}`));
+      days.push(renderDayCell(new Date(currentYear, currentMonth, i), false, todayStr, `curr-${i}`));
+    }
+    const rem = days.length % 7 === 0 ? 0 : 7 - (days.length % 7);
+    for (let i = 1; i <= rem; i++) {
+      days.push(renderDayCell(new Date(currentYear, currentMonth + 1, i), true, todayStr, `next-${i}`));
     }
 
-    // 다음 달 패딩 날짜 추가
-    const totalCells = days.length;
-    const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
-    for (let i = 1; i <= remainingCells; i++) {
-      const dateVal = new Date(currentYear, currentMonth + 1, i);
-      days.push(renderDayCell(dateVal, true, `next-${i}`));
-    }
+    const WEEKDAYS = [
+      { label: '일', cls: 'month-weekday sun' },
+      { label: '월', cls: 'month-weekday' },
+      { label: '화', cls: 'month-weekday' },
+      { label: '수', cls: 'month-weekday' },
+      { label: '목', cls: 'month-weekday' },
+      { label: '금', cls: 'month-weekday' },
+      { label: '토', cls: 'month-weekday sat' },
+    ];
 
     return (
-      <div className="flex flex-col h-full">
-        {/* 요일 헤더 */}
-        <div className="grid grid-cols-7 text-center py-2 border-b border-white/5 font-semibold text-sm text-gray-400">
-          {['일', '월', '화', '수', '목', '금', '토'].map((d, index) => (
-            <div key={d} className={index === 0 ? 'text-red-400' : index === 6 ? 'text-blue-400' : ''}>
-              {d}
-            </div>
-          ))}
+      <div>
+        <div className="month-grid-header">
+          {WEEKDAYS.map(w => <div key={w.label} className={w.cls}>{w.label}</div>)}
         </div>
-        {/* 날짜 격자 */}
-        <div className="grid grid-cols-7 grid-rows-5 flex-1 min-h-[500px]">
-          {days}
-        </div>
+        <div className="month-grid">{days}</div>
       </div>
     );
   };
 
-  const renderDayCell = (date: Date, isPadding: boolean, key: string) => {
+  const renderDayCell = (date: Date, isPadding: boolean, todayStr: string, key: string) => {
     const dateStr = formatKSTDate(date);
-    const todayStr = formatKSTDate(new Date());
     const isToday = dateStr === todayStr;
     const isSelected = dateStr === formatKSTDate(currentDate);
     const dayEvents = getEventsForDate(date);
-    const isSunday = date.getDay() === 0;
-    const isSaturday = date.getDay() === 6;
+    const dow = date.getDay();
+    let numCls = 'day-number';
+    if (isToday) numCls += ' today';
+    else if (dow === 0) numCls += ' sun';
+    else if (dow === 6) numCls += ' sat';
 
     return (
       <div
         key={key}
-        className={`min-h-[100px] border-b border-r border-white/5 p-1.5 flex flex-col group cursor-pointer hover:bg-white/[0.02] transition-colors relative ${
-          isPadding ? 'opacity-30' : ''
-        } ${isSelected ? 'bg-indigo-500/5' : ''}`}
+        className={`day-cell${isPadding ? ' padding' : ''}${isSelected ? ' selected' : ''}`}
         onClick={() => onDateClick(date)}
       >
-        <div className="flex justify-between items-center mb-1">
-          <span
-            className={`w-6 h-6 flex items-center justify-center text-xs font-semibold rounded-full ${
-              isToday 
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' 
-                : isSelected
-                ? 'bg-white/10 text-white'
-                : isSunday
-                ? 'text-red-400'
-                : isSaturday
-                ? 'text-blue-400'
-                : 'text-gray-300'
-            }`}
-          >
-            {date.getDate()}
-          </span>
-          {dayEvents.length > 0 && !isPadding && (
-            <span className="text-[10px] text-gray-500 font-medium px-1.5 py-0.5 rounded bg-white/5">
-              {dayEvents.length}개
-            </span>
-          )}
-        </div>
-
-        {/* 일정 리스트 (최대 3개 표시, 나머지는 +N) */}
-        <div className="flex-1 overflow-y-auto space-y-1 scrollbar-none max-h-[85px]">
-          {dayEvents.slice(0, 3).map((event) => {
-            const catInfo = CATEGORIES[event.category];
+        <div className={numCls}>{date.getDate()}</div>
+        <div className="day-events-list">
+          {dayEvents.slice(0, 3).map(ev => {
+            const cat = CATEGORIES[ev.category];
             return (
               <div
-                key={event.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEventClick(event);
-                }}
-                className="text-[11px] px-1.5 py-1 rounded border transition-all flex items-center gap-1 overflow-hidden whitespace-nowrap text-ellipsis hover:scale-[1.02]"
-                style={{
-                  backgroundColor: catInfo.darkBg,
-                  color: catInfo.darkText,
-                  borderColor: 'rgba(255,255,255,0.05)',
-                }}
+                key={ev.id}
+                className="day-event-chip"
+                style={{ backgroundColor: cat.darkBg, color: cat.darkText }}
+                onClick={e => { e.stopPropagation(); onEventClick(ev); }}
               >
-                <span className="flex-shrink-0" style={{ color: catInfo.color }}>
-                  {getCategoryIcon(event.category)}
-                </span>
-                <span className="font-medium truncate flex-1">
-                  {event.allDay ? '' : `[${formatKSTTime(event.startTime)}] `}
-                  {event.title}
+                <span className="day-event-dot" style={{ background: cat.color }} />
+                <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>
+                  {!ev.allDay && formatKSTTime(ev.startTime) + ' '}
+                  {ev.title}
                 </span>
               </div>
             );
           })}
           {dayEvents.length > 3 && (
-            <div className="text-[9px] text-gray-400 font-semibold text-center py-0.5">
-              외 {dayEvents.length - 3}개 더보기
-            </div>
+            <div className="day-event-more">+{dayEvents.length - 3}개 더</div>
           )}
         </div>
       </div>
     );
   };
 
-  // 2. 주간 뷰(Week View) 렌더러
+  // ─── Week View ───
   const renderWeekView = () => {
     const startOfWeek = getKSTStartOfWeek(currentDate);
-    const weekDays: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-      weekDays.push(addDays(startOfWeek, i));
-    }
+    const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startOfWeek, i));
+    const todayStr  = formatKSTDate(new Date());
+    const WNAMES = ['일','월','화','수','목','금','토'];
 
     return (
-      <div className="flex flex-col h-full min-h-[500px]">
-        {/* 주간 요일 헤더 */}
-        <div className="grid grid-cols-7 border-b border-white/5 py-4 text-center">
-          {weekDays.map((date) => {
-            const dateStr = formatKSTDate(date);
-            const todayStr = formatKSTDate(new Date());
-            const isToday = dateStr === todayStr;
-            const dayName = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
-            
+      <div>
+        <div className="week-header">
+          {weekDays.map(date => {
+            const ds = formatKSTDate(date);
+            const isToday = ds === todayStr;
             return (
               <div
-                key={dateStr}
+                key={ds}
+                className={`week-day-header${isToday ? ' today-col' : ''}`}
                 onClick={() => onDateClick(date)}
-                className={`cursor-pointer p-1 rounded-lg transition-colors hover:bg-white/5 ${
-                  isToday ? 'bg-indigo-600/10' : ''
-                }`}
               >
-                <div className="text-xs text-gray-400 font-medium mb-1">{dayName}</div>
-                <div
-                  className={`mx-auto w-8 h-8 flex items-center justify-center font-bold rounded-full text-sm ${
-                    isToday
-                      ? 'bg-indigo-600 text-white shadow-lg'
-                      : 'text-gray-200'
-                  }`}
-                >
-                  {date.getDate()}
-                </div>
+                <span className="week-day-name">{WNAMES[date.getDay()]}</span>
+                <span className={`week-day-num${isToday ? ' today-num' : ''}`}>{date.getDate()}</span>
               </div>
             );
           })}
         </div>
-
-        {/* 주간 일정 내용 배치 */}
-        <div className="grid grid-cols-7 divide-x divide-white/5 flex-1 min-h-[400px]">
-          {weekDays.map((date) => {
+        <div className="week-body" style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)' }}>
+          {weekDays.map(date => {
             const dayEvents = getEventsForDate(date);
             return (
               <div
                 key={formatKSTDate(date)}
-                className="p-2 space-y-2 min-h-[400px] hover:bg-white/[0.01] transition-colors"
+                className="week-col"
                 onClick={() => onDateClick(date)}
               >
                 {dayEvents.length === 0 ? (
-                  <div className="h-full flex items-center justify-center">
-                    <span className="text-[10px] text-gray-600">일정 없음</span>
-                  </div>
+                  <div className="week-col-empty">비어있음</div>
                 ) : (
-                  dayEvents.map((event) => {
-                    const catInfo = CATEGORIES[event.category];
+                  dayEvents.map(ev => {
+                    const cat = CATEGORIES[ev.category];
                     return (
                       <div
-                        key={event.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEventClick(event);
-                        }}
-                        className="p-2 rounded-lg border transition-all cursor-pointer hover:scale-[1.02] flex flex-col gap-1 shadow-sm"
-                        style={{
-                          backgroundColor: catInfo.darkBg,
-                          color: catInfo.darkText,
-                          borderColor: 'rgba(255,255,255,0.06)',
-                        }}
+                        key={ev.id}
+                        className="week-event-card"
+                        style={{ backgroundColor: cat.darkBg }}
+                        onClick={e => { e.stopPropagation(); onEventClick(ev); }}
                       >
-                        <div className="flex items-center gap-1.5">
-                          <span style={{ color: catInfo.color }}>
-                            {getCategoryIcon(event.category)}
-                          </span>
-                          <span className="text-[10px] font-bold tracking-wide uppercase">
-                            {catInfo.label}
-                          </span>
+                        <div className="week-event-cat" style={{ color: cat.color }}>
+                          <CatIcon cat={ev.category} />
+                          {cat.label}
                         </div>
-                        <div className="text-[12px] font-semibold truncate leading-tight">
-                          {event.title}
+                        <div className="week-event-title" style={{ color: cat.darkText }}>
+                          {ev.title}
                         </div>
-                        <div className="text-[10px] text-gray-400 flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-gray-500" />
-                          <span>
-                            {event.allDay 
-                              ? '하루 종일' 
-                              : `${formatKSTTime(event.startTime)} - ${formatKSTTime(event.endTime)}`}
-                          </span>
+                        <div className="week-event-time">
+                          <ClockIcon />
+                          {ev.allDay ? '하루 종일' : `${formatKSTTime(ev.startTime)} ~ ${formatKSTTime(ev.endTime)}`}
                         </div>
                       </div>
                     );
@@ -332,89 +246,65 @@ export const Calendar: React.FC<CalendarProps> = ({
     );
   };
 
-  // 3. 일간 뷰(Day View) 렌더러
+  // ─── Day View ───
   const renderDayView = () => {
     const dayEvents = getEventsForDate(currentDate);
-    const formattedDate = formatKSTDate(currentDate);
-    const todayStr = formatKSTDate(new Date());
-    const isToday = formattedDate === todayStr;
+    const kstD = getKSTDate(currentDate);
+    const WNAMES = ['일','월','화','수','목','금','토'];
+    const isToday = formatKSTDate(currentDate) === formatKSTDate(new Date());
 
     return (
-      <div className="flex flex-col h-full min-h-[450px] p-4">
-        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
-          <div className="w-12 h-12 rounded-xl bg-indigo-600/10 flex flex-col items-center justify-center border border-indigo-500/10">
-            <span className="text-[10px] font-bold text-indigo-400 leading-none mb-0.5">
-              {['일', '월', '화', '수', '목', '금', '토'][getKSTDate(currentDate).getDay()]}
-            </span>
-            <span className="text-lg font-extrabold text-white leading-none">
-              {getKSTDate(currentDate).getDate()}
-            </span>
+      <div className="day-view-wrap">
+        <div className="day-view-header">
+          <div className="day-badge-box">
+            <span className="day-badge-weekday">{WNAMES[kstD.getDay()]}</span>
+            <span className="day-badge-num">{kstD.getDate()}</span>
           </div>
-          <div>
-            <h3 className="text-lg font-bold text-white">
-              {formatKSTDateTime(currentDate, 'yyyy년 M월 d일')}
-            </h3>
-            <p className="text-xs text-gray-400">
-              {isToday ? '오늘의 일정' : '지정된 일자의 일정'} • 총 {dayEvents.length}개
-            </p>
+          <div className="day-view-info">
+            <h3>{formatKSTDateTime(currentDate, 'yyyy년 M월 d일')}</h3>
+            <p>{isToday ? '오늘의 일정' : '일정 목록'} · 총 {dayEvents.length}개</p>
           </div>
           <button
+            className="btn btn-secondary"
+            style={{ marginLeft:'auto', fontSize:'0.78rem', padding:'7px 14px' }}
             onClick={() => onDateClick(currentDate)}
-            className="ml-auto btn btn-secondary text-xs py-1.5 px-3 rounded-lg flex items-center gap-1"
           >
-            + 새 일정 추가
+            + 일정 추가
           </button>
         </div>
 
         {dayEvents.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
-            <CalendarIcon className="w-12 h-12 text-gray-600 mb-3" />
-            <p className="text-sm text-gray-400 font-medium">등록된 일정이 없습니다.</p>
-            <p className="text-xs text-gray-600 mt-1">상단의 버튼 또는 일정을 더블클릭하여 추가해보세요.</p>
+          <div className="empty-state">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <p>등록된 일정이 없습니다</p>
+            <span>날짜를 클릭하거나 위 버튼으로 추가해보세요</span>
           </div>
         ) : (
-          <div className="space-y-3">
-            {dayEvents.map((event) => {
-              const catInfo = CATEGORIES[event.category];
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {dayEvents.map(ev => {
+              const cat = CATEGORIES[ev.category];
               return (
                 <div
-                  key={event.id}
-                  onClick={() => onEventClick(event)}
-                  className="glass-panel p-4 border transition-all cursor-pointer hover:translate-x-1 flex items-start gap-4"
-                  style={{
-                    borderLeft: `4px solid ${catInfo.color}`,
-                    borderColor: 'rgba(255,255,255,0.05)',
-                  }}
+                  key={ev.id}
+                  className="day-event-row"
+                  onClick={() => onEventClick(ev)}
+                  style={{ borderLeft: `4px solid ${cat.color}` }}
                 >
-                  <div className="p-2 rounded-lg bg-white/5" style={{ color: catInfo.color }}>
-                    {getCategoryIcon(event.category)}
+                  <div className="day-event-icon" style={{ color: cat.color }}>
+                    <CatIcon cat={ev.category} />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span
-                        className="text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider"
-                        style={{
-                          backgroundColor: catInfo.darkBg,
-                          color: catInfo.darkText,
-                        }}
-                      >
-                        {catInfo.label}
-                      </span>
-                      <span className="text-xs text-gray-400 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" />
-                        {event.allDay 
-                          ? '하루 종일' 
-                          : `${formatKSTTime(event.startTime)} ~ ${formatKSTTime(event.endTime)}`}
-                      </span>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div className="day-event-cat-badge" style={{ backgroundColor: cat.darkBg, color: cat.darkText }}>
+                      {cat.label}
                     </div>
-                    <h4 className="text-base font-bold text-white truncate mb-1">
-                      {event.title}
-                    </h4>
-                    {event.description && (
-                      <p className="text-sm text-gray-400 line-clamp-2">
-                        {event.description}
-                      </p>
-                    )}
+                    <div className="day-event-title">{ev.title}</div>
+                    <div className="day-event-time">
+                      <ClockIcon />
+                      {ev.allDay ? '하루 종일' : `${formatKSTTime(ev.startTime)} ~ ${formatKSTTime(ev.endTime)}`}
+                    </div>
+                    {ev.description && <div className="day-event-desc">{ev.description}</div>}
                   </div>
                 </div>
               );
@@ -425,60 +315,39 @@ export const Calendar: React.FC<CalendarProps> = ({
     );
   };
 
+  const viewLabels: Record<CalendarView, string> = { month:'월간', week:'주간', day:'일간' };
+
   return (
-    <div className="glass-panel overflow-hidden border border-white/5 shadow-2xl flex flex-col h-full">
-      {/* 캘린더 컨트롤 헤더 */}
-      <div className="flex flex-col sm:flex-row justify-between items-center p-4 gap-3 border-b border-white/5 bg-white/[0.01]">
-        {/* 좌측: 연월 표시 및 네비게이션 */}
-        <div className="flex items-center gap-2">
-          <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2 min-w-[160px]">
-            <CalendarIcon className="w-5 h-5 text-indigo-400" />
-            <span>
-              {currentYear}년 {currentMonth + 1}월
-            </span>
-          </h2>
-          <div className="flex items-center bg-white/5 p-1 rounded-lg border border-white/5">
-            <button
-              onClick={handlePrev}
-              className="p-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleToday}
-              className="px-2.5 py-0.5 rounded-md text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
-            >
-              오늘
-            </button>
-            <button
-              onClick={handleNext}
-              className="p-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+    <div className="glass-panel calendar-wrap">
+      {/* Header */}
+      <div className="calendar-header">
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <div className="calendar-title">
+            <span style={{ color:'var(--primary)' }}><CalIcon /></span>
+            <span>{currentYear}년 {currentMonth + 1}월</span>
+          </div>
+          <div className="cal-nav">
+            <button className="cal-nav-btn" onClick={handlePrev}><ChevronL /></button>
+            <button className="cal-nav-btn" onClick={handleToday} style={{ padding:'6px 12px' }}>오늘</button>
+            <button className="cal-nav-btn" onClick={handleNext}><ChevronR /></button>
           </div>
         </div>
 
-        {/* 우측: 뷰 선택 탭 */}
-        <div className="flex bg-white/5 p-1 rounded-lg border border-white/5">
-          {(['month', 'week', 'day'] as CalendarView[]).map((v) => (
+        <div className="view-tabs">
+          {(['month','week','day'] as CalendarView[]).map(v => (
             <button
               key={v}
+              className={`view-tab${view === v ? ' active' : ''}`}
               onClick={() => onChangeView(v)}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                view === v
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
             >
-              {v === 'month' ? '월간' : v === 'week' ? '주간' : '일간'}
+              {viewLabels[v]}
             </button>
           ))}
         </div>
       </div>
 
-      {/* 캘린더 본문 */}
-      <div className="p-4 flex-1">
+      {/* Body */}
+      <div style={{ padding: view === 'day' ? 0 : '0 0 4px' }}>
         {view === 'month' && renderMonthView()}
         {view === 'week' && renderWeekView()}
         {view === 'day' && renderDayView()}

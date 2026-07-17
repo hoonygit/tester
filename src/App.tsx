@@ -1,90 +1,91 @@
 import { useState, useEffect } from 'react';
-import { 
-  Calendar as CalendarIcon, 
-  Plus, 
-  Database, 
-  AlertCircle, 
-  Sparkles, 
-  Clock, 
-  Info,
-  CheckCircle2
-} from 'lucide-react';
 import { Calendar } from './components/Calendar';
 import { EventModal } from './components/EventModal';
 import type { EventItem, CalendarView } from './types';
+import { CATEGORIES } from './types';
 import { getKSTDate, formatKSTDateTime } from './utils/dateHelper';
 import confetti from 'canvas-confetti';
 
+// ─── SVG Icons ───
+const PlusIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+);
+const DBIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+  </svg>
+);
+const SparkIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+  </svg>
+);
+const CheckIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>
+);
+const AlertIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+  </svg>
+);
+const ClockIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+  </svg>
+);
+const InfoIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+  </svg>
+);
+const CalendarBig = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+  </svg>
+);
+
 export default function App() {
-  const [events, setEvents] = useState<EventItem[]>([]);
+  const [events, setEvents]           = useState<EventItem[]>([]);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [view, setView] = useState<CalendarView>('month');
-  
-  // 모달 상태
+  const [view, setView]               = useState<CalendarView>('month');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [eventToEdit, setEventToEdit] = useState<EventItem | null>(null);
+  const [isLoading, setIsLoading]     = useState(false);
+  const [error, setError]             = useState<string | null>(null);
+  const [dbStatus, setDbStatus]       = useState<'connected' | 'fallback'>('connected');
+  const [toastMsg, setToastMsg]       = useState<string | null>(null);
 
-  // 로딩, 에러 및 DB 상태
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [dbStatus, setDbStatus] = useState<'connected' | 'fallback'>('connected');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // 간단한 토스트 메시지 시스템
-  const showToast = (message: string) => {
-    setToastMessage(message);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3000);
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
   };
 
-  // API 서버에서 일정 데이터 페칭
+  // ─── Fetch ───
   const fetchEvents = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/events');
-      if (!response.ok) {
-        throw new Error('API 연결에 실패했습니다.');
-      }
-      const data = await response.json();
-      
-      // 만약 데이터에 에러 필드가 들어있다면 (예: DB 미설정)
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      
+      const res = await fetch('/api/events');
+      if (!res.ok) throw new Error('API 연결에 실패했습니다.');
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
       setEvents(data);
       setDbStatus('connected');
     } catch (err: any) {
-      console.warn('Neon DB API Fetch Error, falling back to LocalStorage:', err);
-      // 로컬스토리지 Fallback 처리
-      const localData = localStorage.getItem('hoony_calendar_events');
-      if (localData) {
-        setEvents(JSON.parse(localData));
+      console.warn('Neon DB fallback:', err.message);
+      const local = localStorage.getItem('hoony_calendar_events');
+      if (local) {
+        setEvents(JSON.parse(local));
       } else {
-        // 기본 더미 데이터 셋팅
         const todayStr = formatKSTDateTime(new Date(), 'yyyy-MM-dd');
         const dummy: EventItem[] = [
-          {
-            id: 1,
-            title: '📅 캘린더 서비스 오픈',
-            description: 'React + Vite + TypeScript 기반의 일정관리 서비스가 배포되었습니다.',
-            category: 'event',
-            startTime: `${todayStr}T09:00:00+09:00`,
-            endTime: `${todayStr}T10:00:00+09:00`,
-            allDay: false
-          },
-          {
-            id: 2,
-            title: '💻 Neon DB 마이그레이션 확인',
-            description: 'Neon DB 실시간 연동 테스트를 진행합니다.',
-            category: 'meeting',
-            startTime: `${todayStr}T14:00:00+09:00`,
-            endTime: `${todayStr}T15:30:00+09:00`,
-            allDay: false
-          }
+          { id:1, title:'📅 캘린더 서비스 오픈', description:'React + Vite + Neon DB 기반 일정관리 서비스입니다.', category:'event', startTime:`${todayStr}T09:00:00+09:00`, endTime:`${todayStr}T10:00:00+09:00`, allDay:false },
+          { id:2, title:'💻 DB 연동 확인', description:'Neon DB 실시간 연동 테스트.', category:'meeting', startTime:`${todayStr}T14:00:00+09:00`, endTime:`${todayStr}T15:30:00+09:00`, allDay:false },
         ];
         setEvents(dummy);
         localStorage.setItem('hoony_calendar_events', JSON.stringify(dummy));
@@ -95,189 +96,138 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    fetchEvents();
-  }, []);
+  useEffect(() => { fetchEvents(); }, []);
 
-  // 일정 저장/수정 처리
-  const handleSaveEvent = async (eventData: EventItem) => {
+  // ─── Save ───
+  const handleSaveEvent = async (data: EventItem) => {
     setIsLoading(true);
     try {
       if (dbStatus === 'connected') {
-        const method = eventData.id ? 'PUT' : 'POST';
-        const response = await fetch('/api/events', {
+        const method = data.id ? 'PUT' : 'POST';
+        const res = await fetch('/api/events', {
           method,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(eventData),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
         });
-
-        if (!response.ok) {
-          throw new Error('일정 저장에 실패했습니다.');
-        }
-        
+        if (!res.ok) throw new Error('일정 저장에 실패했습니다.');
         await fetchEvents();
       } else {
-        // Fallback: 로컬 스토리지에 저장
-        let updatedEvents = [...events];
-        if (eventData.id) {
-          // 수정
-          updatedEvents = updatedEvents.map(e => e.id === eventData.id ? eventData : e);
-          showToast('일정이 수정되었습니다 (로컬 저장됨).');
+        let updated = [...events];
+        if (data.id) {
+          updated = updated.map(e => e.id === data.id ? data : e);
         } else {
-          // 생성
-          const newEvent = {
-            ...eventData,
-            id: Date.now() // 고유 임시 ID
-          };
-          updatedEvents.push(newEvent);
-          showToast('새 일정이 등록되었습니다 (로컬 저장됨).');
+          updated.push({ ...data, id: Date.now() });
         }
-        setEvents(updatedEvents);
-        localStorage.setItem('hoony_calendar_events', JSON.stringify(updatedEvents));
+        setEvents(updated);
+        localStorage.setItem('hoony_calendar_events', JSON.stringify(updated));
       }
-      
-      // 성공 피드백 콘페티 효과
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-
-      showToast(eventData.id ? '일정이 성공적으로 수정되었습니다.' : '새 일정이 성공적으로 등록되었습니다.');
+      confetti({ particleCount: 90, spread: 65, origin: { y: 0.6 } });
+      showToast(data.id ? '일정이 수정되었습니다.' : '새 일정이 등록되었습니다.');
     } catch (err: any) {
-      console.error(err);
-      throw new Error(err.message || '저장하는 중 에러가 발생했습니다.');
+      throw new Error(err.message || '저장 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 일정 삭제 처리
+  // ─── Delete ───
   const handleDeleteEvent = async (eventId: number) => {
     setIsLoading(true);
     try {
       if (dbStatus === 'connected') {
-        const response = await fetch('/api/events', {
+        const res = await fetch('/api/events', {
           method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: eventId }),
         });
-
-        if (!response.ok) {
-          throw new Error('일정 삭제에 실패했습니다.');
-        }
-
+        if (!res.ok) throw new Error('일정 삭제에 실패했습니다.');
         await fetchEvents();
       } else {
-        // Fallback: 로컬 스토리지에서 삭제
-        const updatedEvents = events.filter(e => e.id !== eventId);
-        setEvents(updatedEvents);
-        localStorage.setItem('hoony_calendar_events', JSON.stringify(updatedEvents));
+        const updated = events.filter(e => e.id !== eventId);
+        setEvents(updated);
+        localStorage.setItem('hoony_calendar_events', JSON.stringify(updated));
       }
       showToast('일정이 삭제되었습니다.');
     } catch (err: any) {
-      console.error(err);
-      throw new Error(err.message || '삭제하는 중 에러가 발생했습니다.');
+      throw new Error(err.message || '삭제 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 날짜 클릭 시 (새 일정 추가)
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
     setEventToEdit(null);
     setIsModalOpen(true);
   };
-
-  // 일정 클릭 시 (일정 수정/상세)
   const handleEventClick = (event: EventItem) => {
     setEventToEdit(event);
     setSelectedDate(getKSTDate(event.startTime));
     setIsModalOpen(true);
   };
 
-  // 다가오는 일정 필터링 (현재 시간 이후 일정 최대 4개)
   const upcomingEvents = events
-    .filter(e => {
-      const now = new Date().getTime();
-      const startTime = new Date(e.startTime).getTime();
-      return startTime >= now;
-    })
+    .filter(e => new Date(e.startTime).getTime() >= Date.now())
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-    .slice(0, 4);
+    .slice(0, 5);
 
   return (
-    <div className="min-h-screen flex flex-col p-4 md:p-8 max-w-7xl mx-auto space-y-6">
-      {/* 토스트 메시지 팝업 */}
-      {toastMessage && (
-        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 bg-indigo-600 border border-indigo-400 text-white px-4 py-3 rounded-xl shadow-2xl animate-fade-in font-medium text-sm">
-          <CheckCircle2 className="w-4 h-4 text-white" />
-          <span>{toastMessage}</span>
+    <div className="app-container">
+      {/* Toast */}
+      {toastMsg && (
+        <div className="toast anim-slide-down">
+          <CheckIcon />
+          {toastMsg}
         </div>
       )}
 
-      {/* 헤더 섹션 */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-2">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="bg-indigo-600/20 text-indigo-400 text-xs px-2.5 py-1 rounded-full font-bold border border-indigo-500/20 flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3" />
-              KST 한국 표준시 모드
+      {/* Header */}
+      <header className="app-header">
+        <div className="app-header-left">
+          <div className="header-badges">
+            <span className="badge" style={{ background:'rgba(99,102,241,0.12)', color:'#a5b4fc', borderColor:'rgba(99,102,241,0.2)' }}>
+              <SparkIcon /> KST 한국 표준시
             </span>
             {dbStatus === 'connected' ? (
-              <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2.5 py-1 rounded-full font-bold border border-emerald-500/20 flex items-center gap-1.5">
-                <Database className="w-3 h-3" />
-                Neon DB 실시간 연결됨
+              <span className="badge" style={{ background:'rgba(16,185,129,0.1)', color:'#6ee7b7', borderColor:'rgba(16,185,129,0.2)' }}>
+                <DBIcon /> Neon DB 실시간 연결됨
               </span>
             ) : (
-              <span className="bg-amber-500/20 text-amber-400 text-xs px-2.5 py-1 rounded-full font-bold border border-amber-500/20 flex items-center gap-1.5" title="Netlify 배포 후 환경 변수를 주입하면 자동으로 Neon DB에 실시간 동기화됩니다.">
-                <Database className="w-3 h-3" />
-                로컬 저장소 모드 (Fallback)
+              <span className="badge" style={{ background:'rgba(245,158,11,0.1)', color:'#fbbf24', borderColor:'rgba(245,158,11,0.2)' }}>
+                <DBIcon /> 로컬 저장 모드
               </span>
             )}
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
-            <CalendarIcon className="w-8 h-8 text-indigo-500" />
+          <h1>
+            <span style={{ color:'var(--primary)' }}><CalendarBig /></span>
             <span>Hoony's Calendar</span>
           </h1>
-          <p className="text-gray-400 text-xs mt-1 md:text-sm">
-            React + Vite + Neon DB 기반의 스마트한 메모 및 일정관리 스페이스
-          </p>
+          <p>React · Vite · Neon DB 기반의 스마트한 일정관리 서비스</p>
         </div>
-
-        <button
-          onClick={() => handleDateClick(new Date())}
-          className="btn btn-primary font-bold shadow-lg"
-        >
-          <Plus className="w-4 h-4" />
-          <span>새 일정 작성</span>
+        <button className="btn btn-primary" onClick={() => handleDateClick(new Date())}>
+          <PlusIcon />
+          새 일정 작성
         </button>
       </header>
 
-      {/* 로딩 바 표시 */}
+      {/* Loading bar */}
       {isLoading && (
-        <div className="w-full h-1 bg-indigo-950 rounded-full overflow-hidden relative">
-          <div className="absolute top-0 bottom-0 left-0 w-1/2 bg-indigo-500 rounded-full animate-pulse"></div>
+        <div className="loading-bar">
+          <div className="loading-bar-inner" />
         </div>
       )}
 
-      {/* 글로벌 에러 배너 */}
+      {/* Error banner */}
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl flex items-center gap-2.5 text-sm">
-          <AlertCircle className="w-5 h-5" />
-          <span>{error}</span>
+        <div className="error-banner">
+          <AlertIcon /> {error}
         </div>
       )}
 
-      {/* 메인 레이아웃 (달력 & 사이드바) */}
-      <main className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-        {/* 달력 컨테이너 (3열 차지) */}
-        <div className="lg:col-span-3 h-full">
+      {/* Main Grid */}
+      <div className="main-grid">
+        {/* Calendar */}
+        <div>
           <Calendar
             currentDate={currentDate}
             view={view}
@@ -289,78 +239,70 @@ export default function App() {
           />
         </div>
 
-        {/* 대시보드 정보 사이드바 (1열 차지) */}
-        <div className="space-y-6">
-          {/* Neon DB 상태 알림 카드 */}
+        {/* Sidebar */}
+        <aside className="sidebar">
+          {/* DB Fallback warning */}
           {dbStatus === 'fallback' && (
-            <div className="glass-panel p-4 border border-amber-500/20 bg-amber-500/5 rounded-2xl flex gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-              <div className="text-xs space-y-1">
-                <h4 className="font-bold text-amber-300">로컬 브라우저 저장 모드 안내</h4>
-                <p className="text-gray-400 leading-relaxed">
-                  현재 로컬 개발 서버 또는 환경변수(`DATABASE_URL`)가 잡히지 않아 로컬 스토리지에 자료가 임시 저장되고 있습니다.
-                </p>
-                <p className="text-gray-400 leading-relaxed font-semibold">
-                  Netlify에 배포된 환경에서는 설정한 Neon DB와 자동으로 연동되어 안전하게 관리됩니다.
-                </p>
+            <div className="fallback-banner">
+              <div style={{ flexShrink:0, marginTop:2 }}><AlertIcon /></div>
+              <div>
+                <h4>로컬 저장 모드</h4>
+                <p>Netlify 배포 환경에서 <strong>DATABASE_URL</strong> 환경변수가 설정되면 Neon DB와 자동 연동됩니다.</p>
               </div>
             </div>
           )}
 
-          {/* 다가오는 일정 목록 (Upcoming Events) */}
-          <div className="glass-panel p-5 border border-white/5 space-y-4">
-            <h3 className="text-sm font-extrabold text-gray-200 tracking-wider uppercase flex items-center gap-2">
-              <Clock className="w-4 h-4 text-indigo-400" />
-              다가오는 일정 ({upcomingEvents.length})
-            </h3>
-            
-            <div className="space-y-3">
-              {upcomingEvents.length === 0 ? (
-                <div className="text-center py-6">
-                  <Info className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                  <p className="text-xs text-gray-500">예정된 일정이 없습니다.</p>
-                </div>
-              ) : (
-                upcomingEvents.map(event => (
-                  <div
-                    key={event.id}
-                    onClick={() => handleEventClick(event)}
-                    className="p-3 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] hover:border-white/10 cursor-pointer transition-all flex flex-col gap-1"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-indigo-400">
-                        {formatKSTDateTime(event.startTime, 'M월 d일')}
-                      </span>
-                      <span className="text-[10px] text-gray-500">
-                        {event.allDay ? '하루 종일' : formatKSTDateTime(event.startTime, 'HH:mm')}
+          {/* Upcoming Events */}
+          <div className="glass-panel sidebar-card">
+            <div className="sidebar-card-title">
+              <ClockIcon />
+              <span>다가오는 일정 ({upcomingEvents.length})</span>
+            </div>
+            {upcomingEvents.length === 0 ? (
+              <div style={{ textAlign:'center', padding:'24px 0', color:'var(--text-muted)', fontSize:'0.8rem' }}>
+                <div style={{ marginBottom:8, opacity:0.4 }}><InfoIcon /></div>
+                예정된 일정이 없습니다
+              </div>
+            ) : (
+              upcomingEvents.map(ev => {
+                const cat = CATEGORIES[ev.category];
+                return (
+                  <div key={ev.id} className="upcoming-item" onClick={() => handleEventClick(ev)}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span className="upcoming-date">{formatKSTDateTime(ev.startTime, 'M월 d일 (E)')}</span>
+                      <span
+                        style={{ fontSize:'0.62rem', fontWeight:700, padding:'1px 6px', borderRadius:5, background:cat.darkBg, color:cat.darkText }}
+                      >
+                        {cat.label}
                       </span>
                     </div>
-                    <h4 className="text-xs font-bold text-white truncate">
-                      {event.title}
-                    </h4>
+                    <div className="upcoming-title">{ev.title}</div>
+                    <div className="upcoming-time">
+                      {ev.allDay ? '하루 종일' : formatKSTDateTime(ev.startTime, 'HH:mm')}
+                    </div>
                   </div>
-                ))
-              )}
-            </div>
+                );
+              })
+            )}
           </div>
 
-          {/* 사용 방법 안내 카드 */}
-          <div className="glass-panel p-5 border border-white/5 text-xs text-gray-400 space-y-3">
-            <h3 className="font-bold text-gray-200 flex items-center gap-1.5">
-              <Info className="w-4 h-4 text-indigo-400" />
-              스마트 캘린더 안내
-            </h3>
-            <ul className="list-disc list-inside space-y-1.5 leading-relaxed">
-              <li>달력의 날짜 칸을 클릭하여 원하는 날짜에 새 일정을 손쉽게 작성할 수 있습니다.</li>
-              <li>일정을 클릭하면 상세 메모 확인, 수정 및 삭제가 가능합니다.</li>
-              <li>종일(All-day) 토글을 켜면 복잡한 시간 설정 없이 하루 전체 일정으로 저장됩니다.</li>
-              <li>모든 날짜 및 시간은 <strong>한국 표준시(KST)</strong>를 기준으로 오차 없이 동기화됩니다.</li>
+          {/* Guide */}
+          <div className="glass-panel sidebar-card">
+            <div className="sidebar-card-title">
+              <InfoIcon />
+              <span>사용 방법</span>
+            </div>
+            <ul className="guide-list">
+              <li>달력의 날짜를 클릭하면 새 일정을 빠르게 추가할 수 있습니다.</li>
+              <li>일정 칩을 클릭하면 수정 및 삭제가 가능합니다.</li>
+              <li>종일 토글을 켜면 시간 선택 없이 하루 전체 일정으로 등록됩니다.</li>
+              <li>모든 날짜·시간은 <strong style={{ color:'var(--primary)' }}>한국 표준시 (KST)</strong> 기준으로 처리됩니다.</li>
             </ul>
           </div>
-        </div>
-      </main>
+        </aside>
+      </div>
 
-      {/* 일정 입력/수정 모달 */}
+      {/* Modal */}
       <EventModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -370,9 +312,9 @@ export default function App() {
         onDelete={handleDeleteEvent}
       />
 
-      {/* 푸터 */}
-      <footer className="text-center text-xs text-gray-600 pt-8 pb-4 border-t border-white/5">
-        <p>© 2026 Hoony's Calendar Space. Powered by React, Vite, Tailwind-alternative Custom CSS, and Neon DB.</p>
+      {/* Footer */}
+      <footer className="app-footer">
+        © 2026 Hoony's Calendar · Powered by React, Vite, TypeScript & Neon DB
       </footer>
     </div>
   );

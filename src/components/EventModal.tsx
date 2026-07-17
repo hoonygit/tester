@@ -1,13 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar as CalendarIcon, Clock, AlignLeft, Trash2, Check } from 'lucide-react';
 import { CATEGORIES } from '../types';
 import type { EventItem, CategoryKey } from '../types';
-import { 
-  formatKSTDate, 
-  formatKSTTime, 
-  getKSTISOString, 
-  getKSTDate 
-} from '../utils/dateHelper';
+import { formatKSTDate, formatKSTTime, getKSTISOString, getKSTDate } from '../utils/dateHelper';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -18,129 +12,114 @@ interface EventModalProps {
   onDelete: (eventId: number) => Promise<void>;
 }
 
+const XIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+const TrashIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+  </svg>
+);
+const ClockIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+  </svg>
+);
+const CalIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+  </svg>
+);
+
+const catIcons: Record<string, string> = {
+  meeting: '💬',
+  assignment: '📋',
+  event: '🎉',
+  personal: '👤',
+};
+
 export const EventModal: React.FC<EventModalProps> = ({
-  isOpen,
-  onClose,
-  selectedDate,
-  eventToEdit,
-  onSave,
-  onDelete,
+  isOpen, onClose, selectedDate, eventToEdit, onSave, onDelete,
 }) => {
-  const [title, setTitle] = useState('');
+  const [title, setTitle]           = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<CategoryKey>('meeting');
-  
-  // 날짜 필드 (KST 기준 문자열)
+  const [category, setCategory]     = useState<CategoryKey>('meeting');
   const [startDateStr, setStartDateStr] = useState('');
-  const [endDateStr, setEndDateStr] = useState('');
-  
-  // 종일 여부 및 시간
-  const [allDay, setAllDay] = useState(false);
+  const [endDateStr, setEndDateStr]   = useState('');
+  const [allDay, setAllDay]           = useState(false);
   const [startTimeStr, setStartTimeStr] = useState('09:00');
-  const [endTimeStr, setEndTimeStr] = useState('10:00');
-  
-  // 유효성 에러 메시지
-  const [errorMsg, setErrorMsg] = useState('');
+  const [endTimeStr, setEndTimeStr]   = useState('10:00');
+  const [errorMsg, setErrorMsg]       = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 모달이 열리거나 편집 대상 이벤트가 바뀔 때 상태 초기화
   useEffect(() => {
-    if (isOpen) {
-      setErrorMsg('');
-      if (eventToEdit) {
-        // 수정 모드
-        setTitle(eventToEdit.title);
-        setDescription(eventToEdit.description);
-        setCategory(eventToEdit.category);
-        setAllDay(eventToEdit.allDay);
-        
-        const startKST = getKSTDate(eventToEdit.startTime);
-        const endKST = getKSTDate(eventToEdit.endTime);
-        
-        setStartDateStr(formatKSTDate(startKST));
-        setEndDateStr(formatKSTDate(endKST));
-        
-        if (eventToEdit.allDay) {
-          setStartTimeStr('00:00');
-          setEndTimeStr('23:59');
-        } else {
-          setStartTimeStr(formatKSTTime(startKST));
-          setEndTimeStr(formatKSTTime(endKST));
-        }
+    if (!isOpen) return;
+    setErrorMsg('');
+    if (eventToEdit) {
+      setTitle(eventToEdit.title);
+      setDescription(eventToEdit.description);
+      setCategory(eventToEdit.category);
+      setAllDay(eventToEdit.allDay);
+      const s = getKSTDate(eventToEdit.startTime);
+      const e = getKSTDate(eventToEdit.endTime);
+      setStartDateStr(formatKSTDate(s));
+      setEndDateStr(formatKSTDate(e));
+      if (eventToEdit.allDay) {
+        setStartTimeStr('00:00');
+        setEndTimeStr('23:59');
       } else {
-        // 신규 추가 모드
-        setTitle('');
-        setDescription('');
-        setCategory('meeting');
-        setAllDay(false);
-        
-        const dateStr = formatKSTDate(selectedDate);
-        setStartDateStr(dateStr);
-        setEndDateStr(dateStr);
-        
-        // 현재 시각 근처로 기본 시간 셋팅 (예: 1시간 간격)
-        const now = getKSTDate();
-        const currentHour = now.getHours();
-        const nextHour = (currentHour + 1) % 24;
-        
-        const pad = (n: number) => String(n).padStart(2, '0');
-        setStartTimeStr(`${pad(currentHour)}:00`);
-        setEndTimeStr(`${pad(nextHour)}:00`);
+        setStartTimeStr(formatKSTTime(s));
+        setEndTimeStr(formatKSTTime(e));
       }
+    } else {
+      setTitle('');
+      setDescription('');
+      setCategory('meeting');
+      setAllDay(false);
+      const dateStr = formatKSTDate(selectedDate);
+      setStartDateStr(dateStr);
+      setEndDateStr(dateStr);
+      const now = getKSTDate();
+      const h = now.getHours();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      setStartTimeStr(`${pad(h)}:00`);
+      setEndTimeStr(`${pad((h + 1) % 24)}:00`);
     }
   }, [isOpen, eventToEdit, selectedDate]);
 
-  // 시작 시간이 변경될 때 종료 시간이 시작 시간보다 빠르면 1시간 뒤로 보정
-  const handleStartTimeChange = (newStartTime: string) => {
-    setStartTimeStr(newStartTime);
-    
-    // 같은 날짜인 경우에만 체크
+  const handleStartTimeChange = (t: string) => {
+    setStartTimeStr(t);
     if (startDateStr === endDateStr) {
-      const [sh, sm] = newStartTime.split(':').map(Number);
+      const [sh, sm] = t.split(':').map(Number);
       const [eh, em] = endTimeStr.split(':').map(Number);
-      
-      const startMinutes = sh * 60 + sm;
-      const endMinutes = eh * 60 + em;
-      
-      if (startMinutes >= endMinutes) {
-        const nextHour = (sh + 1) % 24;
+      if (sh * 60 + sm >= eh * 60 + em) {
         const pad = (n: number) => String(n).padStart(2, '0');
-        setEndTimeStr(`${pad(nextHour)}:${pad(sm)}`);
+        setEndTimeStr(`${pad((sh + 1) % 24)}:${pad(sm)}`);
       }
     }
   };
 
-  // 시작 날짜가 바뀔 때 종료 날짜 보정
-  const handleStartDateChange = (newStartDate: string) => {
-    setStartDateStr(newStartDate);
-    if (newStartDate > endDateStr) {
-      setEndDateStr(newStartDate);
-    }
+  const handleStartDateChange = (d: string) => {
+    setStartDateStr(d);
+    if (d > endDateStr) setEndDateStr(d);
   };
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) {
-      setErrorMsg('제목을 입력해주세요.');
-      return;
-    }
+    if (!title.trim()) { setErrorMsg('제목을 입력해주세요.'); return; }
 
-    // 날짜/시간 정합성 체크
     const startISO = getKSTISOString(startDateStr, allDay ? '00:00' : startTimeStr);
-    const endISO = getKSTISOString(endDateStr, allDay ? '23:59' : endTimeStr);
-
-    if (startISO >= endISO) {
-      setErrorMsg('종료 시각은 시작 시각보다 늦어야 합니다.');
-      return;
-    }
+    const endISO   = getKSTISOString(endDateStr,   allDay ? '23:59' : endTimeStr);
+    if (startISO >= endISO) { setErrorMsg('종료 시각은 시작 시각보다 늦어야 합니다.'); return; }
 
     setIsSubmitting(true);
     setErrorMsg('');
-
     try {
-      const eventData: EventItem = {
+      const data: EventItem = {
         title: title.trim(),
         description: description.trim(),
         category,
@@ -148,230 +127,172 @@ export const EventModal: React.FC<EventModalProps> = ({
         endTime: endISO,
         allDay,
       };
-
-      if (eventToEdit && eventToEdit.id) {
-        eventData.id = eventToEdit.id;
-      }
-
-      await onSave(eventData);
+      if (eventToEdit?.id) data.id = eventToEdit.id;
+      await onSave(data);
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || '저장하는 중 오류가 발생했습니다.');
+      setErrorMsg(err.message || '저장 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteClick = async () => {
-    if (eventToEdit && eventToEdit.id) {
-      if (window.confirm('정말 이 일정을 삭제하시겠습니까?')) {
-        setIsSubmitting(true);
-        try {
-          await onDelete(eventToEdit.id);
-          onClose();
-        } catch (err: any) {
-          setErrorMsg(err.message || '삭제하는 중 오류가 발생했습니다.');
-        } finally {
-          setIsSubmitting(false);
-        }
+    if (eventToEdit?.id && window.confirm('정말 이 일정을 삭제하시겠습니까?')) {
+      setIsSubmitting(true);
+      try {
+        await onDelete(eventToEdit.id);
+        onClose();
+      } catch (err: any) {
+        setErrorMsg(err.message || '삭제 중 오류가 발생했습니다.');
+      } finally {
+        setIsSubmitting(false);
       }
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div 
-        className="glass-panel w-full max-w-lg overflow-hidden border border-white/10 shadow-2xl animate-scale-in"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* 모달 헤더 */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.01]">
-          <h3 className="text-lg font-bold text-white">
-            {eventToEdit ? '일정 상세 정보' : '새로운 일정 등록'}
-          </h3>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="glass-panel modal-panel" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="modal-header">
+          <h3>{eventToEdit ? '일정 수정' : '새로운 일정 등록'}</h3>
+          <button className="btn-ghost" onClick={onClose}><XIcon /></button>
         </div>
 
-        {/* 모달 본문 폼 */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* 일정 제목 */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-              일정 제목
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: 프로젝트 중간 점검 미팅"
-              className="input-field py-3"
-              autoFocus
-            />
-          </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            {/* Title */}
+            <div>
+              <div className="field-label">일정 제목</div>
+              <input
+                type="text"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="예: 팀 프로젝트 미팅"
+                className="input-field"
+                autoFocus
+              />
+            </div>
 
-          {/* 카테고리 선택 */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">
-              카테고리
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {(Object.keys(CATEGORIES) as CategoryKey[]).map((key) => {
-                const cat = CATEGORIES[key];
-                const isSelected = category === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setCategory(key)}
-                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-bold transition-all ${
-                      isSelected
-                        ? 'border-indigo-500 shadow-md scale-[1.03]'
-                        : 'border-white/5 hover:border-white/10'
-                    }`}
+            {/* Category */}
+            <div>
+              <div className="field-label">카테고리</div>
+              <div className="cat-grid">
+                {(Object.keys(CATEGORIES) as CategoryKey[]).map(key => {
+                  const cat = CATEGORIES[key];
+                  const isSelected = category === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`cat-btn${isSelected ? ' selected' : ''}`}
+                      onClick={() => setCategory(key)}
+                      style={isSelected ? {
+                        backgroundColor: cat.darkBg,
+                        color: cat.darkText,
+                        borderColor: cat.color,
+                      } : {}}
+                    >
+                      <div className="cat-dot" style={{ background: cat.color }} />
+                      <span>{catIcons[key]}</span>
+                      <span>{cat.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Date row */}
+            <div className="date-row">
+              <div>
+                <div className="field-label"><CalIcon /> 시작 날짜</div>
+                <input type="date" value={startDateStr} onChange={e => handleStartDateChange(e.target.value)} className="input-field" />
+              </div>
+              <div>
+                <div className="field-label"><CalIcon /> 종료 날짜</div>
+                <input type="date" value={endDateStr} min={startDateStr} onChange={e => setEndDateStr(e.target.value)} className="input-field" />
+              </div>
+            </div>
+
+            {/* Time section */}
+            <div className="time-section">
+              <div className="time-toggle-row">
+                <div className="time-toggle-label">
+                  <ClockIcon />
+                  <span>하루 종일 (All-day)</span>
+                </div>
+                {/* Toggle */}
+                <label className="toggle-wrap">
+                  <input
+                    type="checkbox"
+                    className="toggle-input"
+                    checked={allDay}
+                    onChange={e => setAllDay(e.target.checked)}
+                  />
+                  <div
                     style={{
-                      backgroundColor: isSelected ? cat.darkBg : 'rgba(255,255,255,0.02)',
-                      color: isSelected ? cat.darkText : '#9ca3af',
+                      width: 44, height: 24,
+                      background: allDay ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                      borderRadius: 99,
+                      position: 'relative',
+                      transition: 'background 0.2s',
                     }}
                   >
-                    <span 
-                      className="w-3.5 h-3.5 rounded-full mb-1.5 flex items-center justify-center"
-                      style={{ backgroundColor: cat.color }}
-                    >
-                      {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
-                    </span>
-                    {cat.label}
-                  </button>
-                );
-              })}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 2, left: 2,
+                        width: 20, height: 20,
+                        borderRadius: '50%',
+                        background: allDay ? '#fff' : '#9ca3af',
+                        transform: allDay ? 'translateX(20px)' : 'none',
+                        transition: 'transform 0.2s, background 0.2s',
+                      }}
+                    />
+                  </div>
+                </label>
+              </div>
+              <div className={`time-fields${allDay ? ' disabled' : ''}`}>
+                <div>
+                  <div className="time-field-label">시작 시간</div>
+                  <input type="time" value={startTimeStr} onChange={e => handleStartTimeChange(e.target.value)} disabled={allDay} className="input-field" style={{ textAlign:'center' }} />
+                </div>
+                <div>
+                  <div className="time-field-label">종료 시간</div>
+                  <input type="time" value={endTimeStr} onChange={e => setEndTimeStr(e.target.value)} disabled={allDay} className="input-field" style={{ textAlign:'center' }} />
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* 날짜 선택 (시작일 / 종료일) */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <CalendarIcon className="w-3.5 h-3.5 text-indigo-400" />
-                시작 날짜
-              </label>
-              <input
-                type="date"
-                value={startDateStr}
-                onChange={(e) => handleStartDateChange(e.target.value)}
+            {/* Memo */}
+            <div>
+              <div className="field-label">상세 내용 (메모)</div>
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="일정에 필요한 메모를 입력하세요..."
+                rows={3}
                 className="input-field"
+                style={{ resize:'none' }}
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <CalendarIcon className="w-3.5 h-3.5 text-indigo-400" />
-                종료 날짜
-              </label>
-              <input
-                type="date"
-                value={endDateStr}
-                onChange={(e) => setEndDateStr(e.target.value)}
-                min={startDateStr}
-                className="input-field"
-              />
-            </div>
+
+            {/* Error */}
+            {errorMsg && <div className="form-error">{errorMsg}</div>}
           </div>
 
-          {/* 종일(All-day) 토글 및 시간 선택 (Time Picker) */}
-          <div className="glass-panel p-4 border border-white/5 bg-white/[0.01] rounded-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-indigo-400" />
-                <span className="text-sm font-semibold text-gray-200">하루 종일 (All-day)</span>
-              </div>
-              
-              {/* iOS 스타일 토글 스위치 */}
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={allDay}
-                  onChange={(e) => setAllDay(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 peer-checked:after:bg-white peer-checked:after:border-white"></div>
-              </label>
-            </div>
-
-            {/* 시간 선택 인풋 */}
-            <div className={`grid grid-cols-2 gap-4 transition-opacity duration-200 ${allDay ? 'opacity-40 pointer-events-none' : ''}`}>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-400">시작 시간</label>
-                <input
-                  type="time"
-                  value={startTimeStr}
-                  disabled={allDay}
-                  onChange={(e) => handleStartTimeChange(e.target.value)}
-                  className="input-field text-center font-medium"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-400">종료 시간</label>
-                <input
-                  type="time"
-                  value={endTimeStr}
-                  disabled={allDay}
-                  onChange={(e) => setEndTimeStr(e.target.value)}
-                  className="input-field text-center font-medium"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* 일정 설명 */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-              <AlignLeft className="w-3.5 h-3.5 text-indigo-400" />
-              상세 내용 (메모)
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="일정에 필요한 메모를 입력하세요..."
-              rows={3}
-              className="input-field resize-none py-2.5"
-            />
-          </div>
-
-          {/* 에러 피드백 */}
-          {errorMsg && (
-            <div className="text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 p-3 rounded-xl">
-              {errorMsg}
-            </div>
-          )}
-
-          {/* 모달 하단 버튼 액션 */}
-          <div className="flex gap-2 pt-2">
+          {/* Footer buttons */}
+          <div className="modal-footer">
             {eventToEdit && (
-              <button
-                type="button"
-                onClick={handleDeleteClick}
-                disabled={isSubmitting}
-                className="btn btn-danger px-4 rounded-xl flex items-center justify-center"
-              >
-                <Trash2 className="w-4 h-4" />
+              <button type="button" className="btn btn-danger" onClick={handleDeleteClick} disabled={isSubmitting} title="삭제">
+                <TrashIcon />
               </button>
             )}
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="btn btn-secondary flex-1 rounded-xl"
-            >
+            <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isSubmitting} style={{ flex:1 }}>
               취소
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="btn btn-primary flex-[2] rounded-xl font-bold"
-            >
+            <button type="submit" className="btn btn-primary" disabled={isSubmitting} style={{ flex:2 }}>
               {isSubmitting ? '저장 중...' : eventToEdit ? '수정 완료' : '일정 등록'}
             </button>
           </div>
